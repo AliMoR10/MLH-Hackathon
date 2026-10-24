@@ -32,6 +32,7 @@ if st.button("Explain this repo", type="primary") and url:
             plans={}, chat=None, messages=[],
         )
     except Exception as e:
+        #TODO Ask user for key and automatically add to .env
         st.error(str(e))
 
 if "info" in st.session_state:
