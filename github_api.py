@@ -68,7 +68,7 @@ def get_file_tree(owner, repo, branch, max_files=200):
 
 def get_beginner_issues(owner, repo, limit=10):
     """Open issues labelled 'good first issue', falling back to 'help wanted'."""
-    
+
     r = requests.get(
         f"{API}/repos/{owner}/{repo}/issues",
         headers=_headers(),

@@ -1,15 +1,18 @@
-import os
 import json
+import os
+
 from google import genai
 from google.genai import types
+
 from github_api import fetch_repo_file_content, fetch_repo_tree
+
 
 class RepositoryAgent:
     def __init__(self, repo_owner: str, repo_name: str):
         self.repo_owner = repo_owner
         self.repo_name = repo_name
         self.client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-        
+
         # Define tools available to Gemma
         self.tools = [
             self.get_file_content_tool,
@@ -18,7 +21,7 @@ class RepositoryAgent:
 
     def get_file_content_tool(self, file_path: str) -> str:
         """Fetch the content of a specific file from the GitHub repository.
-        
+
         Args:
             file_path: The relative path of the file in the repo (e.g., 'app.py' or 'src/utils.py').
         """
@@ -50,6 +53,6 @@ class RepositoryAgent:
                 temperature=0.2,
             )
         )
-        
+
         response = chat.send_message(user_prompt)
         return response.text

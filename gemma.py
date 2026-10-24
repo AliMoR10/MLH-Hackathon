@@ -5,10 +5,9 @@ Docs: https://ai.google.dev/gemma/docs/core/gemma_on_gemini_api
 """
 import io
 import os
-
 import re
-import requests
 
+import requests
 from google import genai
 from google.genai import types
 
@@ -96,7 +95,7 @@ def _download_github_image(url: str) -> tuple[bytes | None, str]:
 def plan_for_issue(info, files, issue):
     body = issue.get('body', '') or ''
     image_urls = _extract_image_urls(body)
-    
+
     # Base text prompt
     prompt = f"""A beginner wants to fix this issue.
 
@@ -115,9 +114,9 @@ Answer with these sections:
 ## Step-by-step plan (numbered)
 ## How to submit the pull request (fork, branch, commit, PR, with example git commands)
 """
-    
+
     contents = [prompt]
-    
+
     # FREE TIER OPTIMIZATION: Only grab the first image to prevent 429 token limit exhaustion
     if image_urls:
         img_bytes, mime_type = _download_github_image(image_urls[0])
