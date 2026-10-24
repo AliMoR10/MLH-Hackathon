@@ -64,7 +64,7 @@ README:
 
 Answer with these sections:
 ## What this project does (2-3 sentences)
-## How the code is organised (the important folders/files and what they're for)
+## How the code is organised (the important folders/files and what they're for). Make sure to read through the whole list of folders, giving a short sentence explanation for each root folder, DO NOT skip any important folder
 ## How to run it locally (based on the README)
 """
     return _ask(prompt)
@@ -107,6 +107,7 @@ Labels: {', '.join(issue['labels'])}
 Description:
 {body}
 
+RULES for answering the sections: DO NOT include in the text, anything inside of brackets, this is only to help you understand the instructions of your task
 Answer with these sections:
 ## Difficulty: Easy / Medium / Hard (one line why)
 ## What the issue is asking for (plain English)
