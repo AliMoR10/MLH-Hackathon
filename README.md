@@ -10,7 +10,7 @@
 [![Streamlit](https://img.shields.io/badge/Built%20with-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![CI](https://github.com/AliMoR10/MLH-Hackathon/actions/workflows/ci.yml/badge.svg)](https://github.com/AliMoR10/MLH-Hackathon/actions/workflows/ci.yml)
 
-[Live demo](#) · [Demo video](#) · [Devpost](#) · [Report a bug](https://github.com/AliMoR10/MLH-Hackathon/issues/new?template=bug_report.md)
+   [Live demo](https://first-pr-buddy-mlh.streamlit.app/) · [Demo video](#) · [Devpost](#) · [Report a bug](https://github.com/AliMoR10/MLH-Hackathon/issues/new?template=bug_report.md)
 
 <!-- TODO: replace with a real screenshot or GIF of the app -->
 <!-- ![First PR Buddy screenshot](docs/screenshot.png) -->
