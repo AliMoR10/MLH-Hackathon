@@ -90,23 +90,39 @@ def _repo_context(info, files):
     )
 
 
+def _get_root_folders(files):
+    """Extracts unique root-level folders and files from a flat file path list."""
+    roots = set()
+    for f in files:
+        root = f.strip("/").split("/")[0]
+        if root:
+            roots.add(root)
+    return sorted(list(roots))
+
+
 def summarize_repo(info, readme, files):
+    root_folders = _get_root_folders(files)
+    
     prompt = f"""Explain this project to a beginner who wants to make their first contribution.
 
 {_repo_context(info, files)}
+
+### EXPLICIT ROOT DIRECTORIES & TOP-LEVEL FILES TO EXPLAIN:
+{", ".join(root_folders)}
 
 README:
 {readme}
 
 <constraints>
-- You MUST review every single root folder and top-level file provided in the file list.
+- You MUST review every single root folder listed in the EXPLICIT ROOT DIRECTORIES section above.
 - DO NOT summarize, skip, or gloss over any root folder.
-- Provide a short sentence explanation for EVERY root folder present in the file list.
+- Provide a short sentence explanation for EVERY root folder present in that list.
+- DO NOT include in the response, anything inside of brackets, inclusive. The text in brackets is only to help you understand the instructions of your task
 </constraints>
 
 Answer with these exact sections:
 ## What this project does (2-3 sentences)
-## How the code is organised (the important folders/files and what they're for)
+## How the code is organised (the important folders and what they're for)
 ## How to run it locally (based on the README)
 """
     return _ask(prompt, think=True)
