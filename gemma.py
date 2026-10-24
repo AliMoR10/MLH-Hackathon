@@ -6,10 +6,14 @@ Docs: https://ai.google.dev/gemma/docs/core/gemma_on_gemini_api
 import io
 import os
 import re
+import threading
+import time
 
 import requests
 from google import genai
-from google.genai import types
+from google.genai import errors, types
+
+import local_gemma
 
 MODEL = "gemma-4-26b-a4b-it"  # Gemma 4 via the Gemini API (also available: gemma-4-31b-it)
 
@@ -19,30 +23,63 @@ MENTOR = (
     "are not in the file list you are given."
 )
 
-_client = None
+_clients = {}  # one Gemini client per API key
+_settings = threading.local()  # per-visitor settings, so visitors never share keys
+
+
+def configure(api_key=None, backend="gemini"):
+    """Called by app.py on every page run. backend: "gemini" (cloud) or "ollama" (this computer)."""
+    _settings.api_key = api_key
+    _settings.backend = backend
+
+
+def _backend():
+    return getattr(_settings, "backend", None) or os.getenv("GEMMA_BACKEND", "gemini")
 
 
 def _get_client():
-    global _client
-    if _client is None:
-        key = os.getenv("GEMINI_API_KEY")
-        if not key:
-            raise RuntimeError("Missing GEMINI_API_KEY. Put it in your .env file.")
-        _client = genai.Client(api_key=key)
-    return _client
+    key = getattr(_settings, "api_key", None) or os.getenv("GEMINI_API_KEY")
+    if not key:
+        raise RuntimeError("Missing GEMINI_API_KEY. Add it in the sidebar or in your .env file.")
+    if key not in _clients:
+        _clients[key] = genai.Client(api_key=key)
+    return _clients[key]
+
+
+RETRY_CODES = {500, 502, 503, 504}  # temporary errors on Google's side
+RETRY_WAITS = [2, 5, 10]  # seconds to wait before each retry
+
+
+def _with_retries(call):
+    """Run call(attempt). If Google returns a temporary 5xx error, wait and try again."""
+    for attempt in range(len(RETRY_WAITS) + 1):
+        try:
+            return call(attempt)
+        except errors.APIError as e:
+            if e.code not in RETRY_CODES or attempt == len(RETRY_WAITS):
+                raise
+            time.sleep(RETRY_WAITS[attempt])
 
 
 def _ask(contents, think=False):
     """think=True turns on Gemma 4's thinking mode: slower, but better reasoning."""
-    resp = _get_client().models.generate_content(
-        model=MODEL,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            system_instruction=MENTOR,
-            thinking_config=types.ThinkingConfig(thinking_level="high" if think else "minimal"),
-        ),
-    )
-    return resp.text
+    if _backend() == "ollama":
+        return local_gemma.ask(MENTOR, contents)
+
+    def call(attempt):
+        # If the first tries fail, switch thinking off: a smaller, faster request fails less often.
+        level = "high" if think and attempt < 2 else "minimal"
+        resp = _get_client().models.generate_content(
+            model=MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=MENTOR,
+                thinking_config=types.ThinkingConfig(thinking_level=level),
+            ),
+        )
+        return resp.text
+
+    return _with_retries(call)
 
 
 def _repo_context(info, files):
@@ -154,18 +191,11 @@ def explain_screenshot(image_bytes, mime_type, info=None):
 
 def start_chat(info, readme, files):
     """A multi-turn chat about one repo. The SDK remembers the conversation history."""
-    chat = _get_client().chats.create(
-        model=MODEL,
-        config=types.GenerateContentConfig(
-            system_instruction=MENTOR
-            + "\n\nYou are helping with this repository:\n"
-            + _repo_context(info, files)
-            + "\n\nREADME:\n"
-            + readme
-        ),
-    )
-    return chat
+    system = MENTOR + "\n\nYou are helping with this repository:\n" + _repo_context(info, files) + "\n\nREADME:\n" + readme
+    if _backend() == "ollama":
+        return local_gemma.LocalChat(system)
+    return _get_client().chats.create(model=MODEL, config=types.GenerateContentConfig(system_instruction=system))
 
 
 def ask_chat(chat, question):
-    return chat.send_message(question).text
+    return _with_retries(lambda attempt: chat.send_message(question).text)
