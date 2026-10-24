@@ -61,12 +61,18 @@ def summarize_repo(info, readme, files):
 README:
 {readme}
 
-Answer with these sections:
+<constraints>
+- You MUST review every single root folder and top-level file provided in the file list.
+- DO NOT summarize, skip, or gloss over any root folder.
+- Provide a short sentence explanation for EVERY root folder present in the file list.
+</constraints>
+
+Answer with these exact sections:
 ## What this project does (2-3 sentences)
-## How the code is organised (the important folders/files and what they're for). Make sure to read through the whole list of folders, giving a short sentence explanation for each root folder, DO NOT skip any important folder
+## How the code is organised (the important folders/files and what they're for)
 ## How to run it locally (based on the README)
 """
-    return _ask(prompt)
+    return _ask(prompt, think=True)
 
 def _extract_image_urls(text: str) -> list[str]:
     """Extracts markdown and HTML image URLs from issue text."""
@@ -106,8 +112,9 @@ Labels: {', '.join(issue['labels'])}
 Description:
 {body}
 
-RULES for answering the sections: DO NOT include in the text, anything inside of brackets, this is only to help you understand the instructions of your task
-Answer with these sections:
+RULES for answering the sections:
+ * DO NOT include in the response, anything inside of brackets, inclusive. The text in brackets is only to help you understand the instructions of your task
+Sections to answer:
 ## Difficulty: Easy / Medium / Hard (one line why)
 ## What the issue is asking for (plain English)
 ## Files to look at first
@@ -140,7 +147,7 @@ def explain_screenshot(image_bytes, mime_type, info=None):
     context = f" while working on {info['name']}" if info else ""
     prompt = (
         f"A beginner got this error{context}. Read the screenshot, explain in simple "
-        "words what went wrong, and give clear steps to fix it."
+        "words what went wrong, and give clear steps to fix it, and an explanation at the end, explaining how you fixed it."
     )
     return _ask([_image_part(image_bytes, mime_type), prompt], think=True)
 
