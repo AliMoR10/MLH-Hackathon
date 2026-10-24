@@ -12,31 +12,78 @@ import github_api  # noqa: E402
 
 st.set_page_config(page_title="First PR Buddy", page_icon="🤝", layout="wide")
 
+EXAMPLES = {
+    "🌱 First Contributions": "https://github.com/firstcontributions/first-contributions",
+    "🎈 Streamlit": "https://github.com/streamlit/streamlit",
+    "🏕️ freeCodeCamp": "https://github.com/freeCodeCamp/freeCodeCamp",
+}
+
+
+def use_example(link):
+    st.session_state.url = link
+    st.session_state.auto_run = True
+
+
+def show_error(e):
+    """Turn technical errors into friendly messages (details stay available)."""
+    msg = str(e)
+    if "API key" in msg or "GEMINI_API_KEY" in msg:
+        st.error("🔑 Gemma couldn't use the API key. Check GEMINI_API_KEY in your .env file, then restart the app.")
+    elif "429" in msg or "quota" in msg.lower() or "RESOURCE_EXHAUSTED" in msg:
+        st.warning("⏳ Gemma is busy right now (usage limit). Wait a minute and try again.")
+    elif "rate limit" in msg.lower():
+        st.warning("⏳ GitHub's limit was reached. Add a GITHUB_TOKEN to your .env file to raise it.")
+    elif isinstance(e, ValueError):
+        st.warning(f"🤔 {msg}")
+    else:
+        st.error("😕 Something went wrong. Please try again.")
+    with st.expander("Technical details"):
+        st.code(msg)
+
+
+with st.sidebar:
+    st.header("🤝 How it works")
+    st.markdown(
+        "1. **Paste** a GitHub repo link\n"
+        "2. **Understand** the project in plain English\n"
+        "3. **Pick** a beginner-friendly issue\n"
+        "4. **Follow** your step-by-step plan to a pull request\n\n"
+        "Stuck? Upload a **screenshot** of your error, or **ask Buddy** anything."
+    )
+    st.subheader("Try an example")
+    for label, link in EXAMPLES.items():
+        st.button(label, on_click=use_example, args=(link,), use_container_width=True)
+    st.divider()
+    st.caption("Powered by **Gemma 4**, Google's open model · Hosted on **DigitalOcean**")
+    st.caption("[View source on GitHub](https://github.com/AliMoR10/MLH-Hackathon)")
+
 st.title("🤝 First PR Buddy")
 st.caption("Paste any GitHub repo. Get a friendly guide to your first open-source contribution. Powered by Gemma 4.")
 
-#TODO Ask user if they want local model use.
-url = st.text_input("GitHub repo link", placeholder="https://github.com/owner/repo")
+url = st.text_input("GitHub repo link", key="url", placeholder="https://github.com/owner/repo")
+clicked = st.button("Explain this repo", type="primary")
+auto_run = st.session_state.pop("auto_run", False)
 
-if st.button("Explain this repo", type="primary") and url:
+if (clicked or auto_run) and url:
     try:
         owner, repo = github_api.parse_repo_url(url)
-        with st.spinner("Reading the repo from GitHub..."):
+        with st.spinner("📥 Reading the repo from GitHub..."):
             info = github_api.get_repo_info(owner, repo)
             readme = github_api.get_readme(owner, repo)
             files = github_api.get_file_tree(owner, repo, info["default_branch"])
             issues = github_api.get_beginner_issues(owner, repo)
-        with st.spinner("Gemma 4 is studying the code..."):
+        with st.spinner("🧠 Gemma 4 is studying the code... (about 10 seconds)"):
             summary = gemma.summarize_repo(info, readme, files)
         st.session_state.update(
             info=info, readme=readme, files=files, issues=issues, summary=summary,
             plans={}, chat=None, messages=[],
         )
     except Exception as e:
-        #TODO Ask user for key and automatically add to .env
-        st.error(str(e))
+        show_error(e)
 
-if "info" in st.session_state:
+if "info" not in st.session_state:
+    st.info("👋 New to open source? Paste a repo link above, or pick an example in the sidebar to see how it works.")
+else:
     info = st.session_state.info
     st.subheader(f"📦 {info['name']}")
     st.write(f"⭐ {info['stars']}  ·  {info['language']}  ·  [Open on GitHub]({info['url']})")
@@ -63,7 +110,7 @@ if "info" in st.session_state:
                                 info, st.session_state.files, issue
                             )
                         except Exception as e:
-                            st.error(str(e))
+                            show_error(e)
                 if key in st.session_state.plans:
                     st.markdown(st.session_state.plans[key])
 
@@ -74,7 +121,7 @@ if "info" in st.session_state:
                 try:
                     st.markdown(gemma.explain_screenshot(shot.getvalue(), shot.type, info))
                 except Exception as e:
-                    st.error(str(e))
+                    show_error(e)
 
     with tab4:
         st.write("Ask anything about this repo, e.g. *Where are the tests?* or *What does this folder do?*")
@@ -96,7 +143,7 @@ if "info" in st.session_state:
                     st.markdown(answer)
                     st.session_state.messages.append(("assistant", answer))
                 except Exception as e:
-                    st.error(str(e))
+                    show_error(e)
 
 st.divider()
 st.caption("Open source (MIT) · Built at MLH Hacktoberfest 2026 · Gemma 4 + DigitalOcean")
