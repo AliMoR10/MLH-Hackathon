@@ -1,7 +1,9 @@
-import os
 import json
+import os
+
 from google import genai
 from google.genai import types
+
 
 class IssueAnalyzer:
     def __init__(self):
@@ -11,20 +13,20 @@ class IssueAnalyzer:
         """Analyzes a GitHub issue and returns a structured difficulty score and categorization."""
         prompt = f"""
         Analyze the following GitHub issue for a Hacktoberfest beginner contributor:
-        
+
         Title: {issue_title}
         Body: {issue_body}
-        
+
         Return a valid JSON object with the following keys:
         - "difficulty_score": an integer from 1 (Super Easy) to 5 (Advanced)
         - "category": one of ["Quick Fix", "Documentation", "Bug Fix", "Feature Addition"]
         - "estimated_time": string representing time expectation (e.g., "30 mins", "2 hours")
         - "required_skills": list of strings naming required languages/tools
         - "reasoning": brief, encouraging explanation of why this score was given.
-        
+
         Output ONLY valid JSON without markdown code fences.
         """
-        
+
         try:
             response = self.client.models.generate_content(
                 model="gemini-2.5-flash",
