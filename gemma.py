@@ -6,6 +6,9 @@ Docs: https://ai.google.dev/gemma/docs/core/gemma_on_gemini_api
 import io
 import os
 
+import re
+import requests
+
 from google import genai
 from google.genai import types
 
@@ -66,8 +69,35 @@ Answer with these sections:
 """
     return _ask(prompt)
 
+def _extract_image_urls(text: str) -> list[str]:
+    """Extracts markdown and HTML image URLs from issue text."""
+    if not text:
+        return []
+    markdown_pattern = r'!\[.*?\]\((https?://[^\s)]+)\)'
+    html_pattern = r'<img[^>]+src=["\'](https?://[^"\']+)["\']'
+    markdown_images = re.findall(markdown_pattern, text)
+    html_images = re.findall(html_pattern, text)
+    return list(dict.fromkeys(markdown_images + html_images))
+
+
+def _download_github_image(url: str) -> tuple[bytes | None, str]:
+    """Downloads an image using GitHub token if private, returning bytes and mime type."""
+    token = os.getenv("GITHUB_TOKEN")
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"} if token else {}
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            mime_type = response.headers.get("Content-Type", "image/jpeg")
+            return response.content, mime_type
+    except Exception as e:
+        print(f"Failed to download issue image {url}: {e}")
+    return None, "image/jpeg"
 
 def plan_for_issue(info, files, issue):
+    body = issue.get('body', '') or ''
+    image_urls = _extract_image_urls(body)
+    
+    # Base text prompt
     prompt = f"""A beginner wants to fix this issue.
 
 {_repo_context(info, files)}
@@ -75,7 +105,7 @@ def plan_for_issue(info, files, issue):
 Issue #{issue['number']}: {issue['title']}
 Labels: {', '.join(issue['labels'])}
 Description:
-{issue['body']}
+{body}
 
 Answer with these sections:
 ## Difficulty: Easy / Medium / Hard (one line why)
@@ -84,7 +114,16 @@ Answer with these sections:
 ## Step-by-step plan (numbered)
 ## How to submit the pull request (fork, branch, commit, PR, with example git commands)
 """
-    return _ask(prompt, think=True)  # planning benefits from thinking mode
+    
+    contents = [prompt]
+    
+    # FREE TIER OPTIMIZATION: Only grab the first image to prevent 429 token limit exhaustion
+    if image_urls:
+        img_bytes, mime_type = _download_github_image(image_urls[0])
+        if img_bytes:
+            contents.append(_image_part(img_bytes, mime_type))
+
+    return _ask(contents, think=True)
 
 
 def _image_part(image_bytes, mime_type):
