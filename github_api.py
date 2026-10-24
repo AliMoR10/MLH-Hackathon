@@ -68,25 +68,24 @@ def get_file_tree(owner, repo, branch, max_files=200):
 
 def get_beginner_issues(owner, repo, limit=10):
     """Open issues labelled 'good first issue', falling back to 'help wanted'."""
-    for label in ("good first issue", "help wanted"):
-        r = requests.get(
-            f"{API}/repos/{owner}/{repo}/issues",
-            headers=_headers(),
-            params={"labels": label, "state": "open", "per_page": limit},
-            timeout=15,
-        )
-        if r.status_code != 200:
-            continue
-        issues = [i for i in r.json() if "pull_request" not in i]  # skip PRs
-        if issues:
-            return [
-                {
-                    "number": i["number"],
-                    "title": i["title"],
-                    "body": (i.get("body") or "")[:3000],
-                    "url": i["html_url"],
-                    "labels": [lbl["name"] for lbl in i.get("labels", [])],
-                }
-                for i in issues
-            ]
+    
+    r = requests.get(
+        f"{API}/repos/{owner}/{repo}/issues",
+        headers=_headers(),
+        params={"state": "open", "per_page": limit},
+        timeout=15,
+    )
+
+    issues = [i for i in r.json() if "pull_request" not in i]  # skip PRs
+    if issues:
+        return [
+            {
+                "number": i["number"],
+                "title": i["title"],
+                "body": (i.get("body") or "")[:3000],
+                "url": i["html_url"],
+                "labels": [lbl["name"] for lbl in i.get("labels", [])],
+            }
+            for i in issues
+        ]
     return []
