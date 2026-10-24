@@ -61,7 +61,7 @@ def get_file_tree(owner, repo, branch, max_files=200):
     if r.status_code != 200:
         return []
     paths = [item["path"] for item in r.json().get("tree", []) if item["type"] == "blob"]
-    skip = ("node_modules/", ".git/", "dist/", "build/", "vendor/")
+    skip = ("node_modules/", ".git/", "dist/", "build/", "vendor/", ".github/", "venv", ".venv")
     paths = [p for p in paths if not p.startswith(skip)]
     return paths[:max_files]
 
