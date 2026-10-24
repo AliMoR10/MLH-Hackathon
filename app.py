@@ -15,6 +15,7 @@ st.set_page_config(page_title="First PR Buddy", page_icon="🤝", layout="wide")
 st.title("🤝 First PR Buddy")
 st.caption("Paste any GitHub repo. Get a friendly guide to your first open-source contribution. Powered by Gemma 4.")
 
+#TODO Ask user if they want local model use.
 url = st.text_input("GitHub repo link", placeholder="https://github.com/owner/repo")
 
 if st.button("Explain this repo", type="primary") and url:
