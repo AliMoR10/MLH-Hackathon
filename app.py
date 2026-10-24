@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import os  # noqa: E402
+
 import gemma  # noqa: E402
 import github_api  # noqa: E402
 
@@ -27,8 +29,12 @@ def use_example(link):
 def show_error(e):
     """Turn technical errors into friendly messages (details stay available)."""
     msg = str(e)
-    if "API key" in msg or "GEMINI_API_KEY" in msg:
-        st.error("🔑 Gemma couldn't use the API key. Check GEMINI_API_KEY in your .env file, then restart the app.")
+    if "Ollama" in msg:
+        st.error(f"💻 {msg}")
+    elif "API key" in msg or "GEMINI_API_KEY" in msg:
+        st.error("🔑 Gemma couldn't use the API key. Paste a valid key under ⚙️ Settings in the sidebar.")
+    elif any(code in msg for code in ("500", "502", "503", "504", "INTERNAL", "UNAVAILABLE")):
+        st.warning("☁️ Google's Gemma servers are having a moment. We retried a few times. Please try again in a minute.")
     elif "429" in msg or "quota" in msg.lower() or "RESOURCE_EXHAUSTED" in msg:
         st.warning("⏳ Gemma is busy right now (usage limit). Wait a minute and try again.")
     elif "rate limit" in msg.lower():
@@ -53,6 +59,31 @@ with st.sidebar:
     st.subheader("Try an example")
     for label, link in EXAMPLES.items():
         st.button(label, on_click=use_example, args=(link,), use_container_width=True)
+    st.divider()
+    with st.expander("⚙️ Settings", expanded=False):
+        where = st.radio(
+            "Where should Gemma 4 run?",
+            ["☁️ Cloud (Gemini API)", "💻 On my computer (Ollama)"],
+            index=1 if os.getenv("GEMMA_BACKEND") == "ollama" else 0,
+            help="On your computer = free, private and offline. Needs Ollama installed and `ollama pull gemma4`.",
+        )
+        backend = "ollama" if where.startswith("💻") else "gemini"
+        user_key = None
+        if backend == "gemini":
+            if os.getenv("GEMINI_API_KEY"):
+                st.caption("✅ Using the app's built-in key. You can also use your own:")
+            user_key = st.text_input(
+                "Your Gemini API key (optional)",
+                type="password",
+                help="Get a free key at aistudio.google.com/apikey",
+            ).strip() or None
+            st.caption("🔒 Your key is only used for this session. It is never saved or shared.")
+        else:
+            st.caption("Only works when you run this app on your own computer with the Ollama app open.")
+    gemma.configure(api_key=user_key, backend=backend)
+    if st.session_state.get("backend") != backend:  # switching engines starts a fresh chat
+        st.session_state.backend = backend
+        st.session_state.chat = None
     st.divider()
     st.caption("Powered by **Gemma 4**, Google's open model · Hosted on **DigitalOcean**")
     st.caption("[View source on GitHub](https://github.com/AliMoR10/MLH-Hackathon)")
